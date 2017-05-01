@@ -15,6 +15,28 @@ use_tf12_api = distutils.version.LooseVersion(tf.VERSION) >= distutils.version.L
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
+
+def ccvl_cluster_spec(num_workers, num_ps):
+    """
+More tensorflow setup for data parallelism
+"""
+    cluster = {}
+    port = 12222
+
+    all_ps = []
+    host = 'ccvl2.ccvl.jhu.edu'
+    for _ in range(num_ps):
+        all_ps.append('{}:{}'.format(host, port))
+        port += 1
+    cluster['ps'] = all_ps
+
+    all_workers = [
+       'ccvl1.ccvl.jhu.edu:{port}'.format(port=port),
+       'ccvl3.ccvl.jhu.edu:{port}'.format(port=port),
+    ]
+    cluster['worker'] = all_workers
+    return cluster
+
 # Disables write_meta_graph argument, which freezes entire process and is mostly useless.
 class FastSaver(tf.train.Saver):
     def save(self, sess, save_path, global_step=None, latest_filename=None,
@@ -128,7 +150,7 @@ Setting up Tensorflow for data parallel work
                         help="Visualise the gym environment by running env.render() between each timestep")
 
     args = parser.parse_args()
-    spec = cluster_spec(args.num_workers, 1)
+    spec = ccvl_cluster_spec(args.num_workers, 1)
     cluster = tf.train.ClusterSpec(spec).as_cluster_def()
 
     def shutdown(signal, frame):
@@ -150,3 +172,5 @@ Setting up Tensorflow for data parallel work
 
 if __name__ == "__main__":
     tf.app.run()
+
+
